@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Código de autorização</title>
+<style>
+  :root{
+    --ink:#15171C; --ink-2:#4A5160; --ink-3:#7A828F;
+    --ground:#FAFAFB; --surface:#FFFFFF; --line:#E3E5EA;
+    --accent:#2D4A7C; --accent-soft:#E8EDF6;
+    --good:#1B6E52; --good-soft:#E4F1EB;
+    --warn:#96600C; --warn-soft:#F7EEDD; --warn-line:#E3C98F;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ink:#E9EBEF; --ink-2:#A8AEBB; --ink-3:#787F8D;
+    --ground:#101216; --surface:#171A20; --line:#2A2E37;
+    --accent:#8FAFDF; --accent-soft:#1C2634;
+    --good:#6FC7A2; --good-soft:#16261F;
+    --warn:#D9A452; --warn-soft:#2A2115; --warn-line:#4A3A1C;
+  }}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    font-size:16px;line-height:1.6;display:grid;place-items:center;min-height:100vh;
+    padding:24px;-webkit-font-smoothing:antialiased}
+  main{width:100%;max-width:560px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--ink-3);font-weight:600;margin-bottom:6px}
+  h1{font-size:24px;margin:0 0 8px;letter-spacing:-.02em;text-wrap:balance}
+  .lede{color:var(--ink-2);margin:0 0 22px;font-size:15.5px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:20px}
+  .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-3);margin-bottom:8px}
+  .code{font-family:var(--mono);font-size:15px;word-break:break-all;line-height:1.6;
+    background:var(--accent-soft);color:var(--accent);padding:14px 16px;border-radius:6px;
+    -webkit-user-select:all;user-select:all}
+  button{margin-top:14px;width:100%;font:inherit;font-size:15px;font-weight:600;
+    background:var(--accent);color:#fff;border:0;padding:13px;border-radius:6px;cursor:pointer;
+    transition:background .15s}
+  button:hover{filter:brightness(1.08)}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  button.ok{background:var(--good)}
+  .next{margin-top:20px;font-size:14.5px;color:var(--ink-2)}
+  .next b{color:var(--ink)}
+  .note{border-left:3px solid var(--warn-line);background:var(--warn-soft);
+    padding:12px 15px;margin-top:18px;font-size:14px;border-radius:0 5px 5px 0;color:var(--ink-2)}
+  .note b{color:var(--warn);display:block;font-size:11.5px;letter-spacing:.08em;
+    text-transform:uppercase;margin-bottom:3px}
+  .foot{margin-top:22px;font-size:12.5px;color:var(--ink-3);text-align:center}
+  code{font-family:var(--mono);font-size:13.5px}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Mercado Livre &middot; autorização</div>
+
+  <!-- estado 1: veio o código -->
+  <section id="ok" hidden>
+    <h1>Autorização concedida</h1>
+    <p class="lede">Copie o código abaixo e cole no terminal, onde o
+       <code>setup.py</code> está esperando.</p>
+    <div class="card">
+      <div class="lbl">Código de autorização</div>
+      <div class="code" id="code"></div>
+      <button type="button" id="copy">Copiar código</button>
+    </div>
+    <p class="next">Depois de colar: o script troca esse código por um token permanente e
+       mostra <b>o nome da sua loja e quantos anúncios encontrou</b>. Se aparecer isso,
+       está conectado.</p>
+    <div class="note"><b>Vale 10 minutos e serve uma vez</b>
+      Se demorar ou der <code>invalid_grant</code>, rode o <code>setup.py</code> de novo.
+      Não estraga nada.</div>
+  </section>
+
+  <!-- estado 2: o ML recusou -->
+  <section id="erro" hidden>
+    <h1>O Mercado Livre recusou</h1>
+    <p class="lede">Não veio código. A resposta foi:</p>
+    <div class="card"><div class="code" id="msg"></div></div>
+    <p class="next">Quase sempre é uma destas: você clicou em <b>Cancelar</b> em vez de
+       Permitir, ou o <b>redirect cadastrado</b> no DevCenter é diferente do que o script
+       enviou — precisa ser idêntico, incluindo a barra no final.</p>
+  </section>
+
+  <!-- estado 3: alguém abriu a página solta -->
+  <section id="vazio" hidden>
+    <h1>Página de retorno</h1>
+    <p class="lede">Esta página existe só para receber a autorização do Mercado Livre.
+       Sozinha, ela não faz nada.</p>
+    <p class="next">Se você chegou aqui por engano, pode fechar. Se está configurando o
+       agente de análise, rode <code>setup.py</code> no terminal — ele te traz de volta
+       para cá com o código.</p>
+  </section>
+
+  <p class="foot">Esta página roda inteira no seu navegador. O código não é enviado a
+     lugar nenhum.</p>
+</main>
+
+<script>
+(function(){
+  var p = new URLSearchParams(location.search);
+  var code = p.get('code');
+  var erro = p.get('error_description') || p.get('error') || p.get('message');
+
+  function mostrar(id){ document.getElementById(id).hidden = false; }
+
+  if (code) {
+    document.getElementById('code').textContent = code;
+    mostrar('ok');
+    var btn = document.getElementById('copy');
+    btn.addEventListener('click', function(){
+      var feito = function(){
+        btn.textContent = 'Copiado ✓';
+        btn.classList.add('ok');
+        setTimeout(function(){
+          btn.textContent = 'Copiar código';
+          btn.classList.remove('ok');
+        }, 1800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(feito, selecionar);
+      } else { selecionar(); }
+    });
+    function selecionar(){
+      var r = document.createRange();
+      r.selectNodeContents(document.getElementById('code'));
+      var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      try { document.execCommand('copy'); btn.textContent='Copiado ✓';
+            btn.classList.add('ok'); } catch(e){}
+    }
+  } else if (erro) {
+    document.getElementById('msg').textContent = erro;
+    mostrar('erro');
+  } else {
+    mostrar('vazio');
+  }
+})();
+</script>
+</body>
+</html>
